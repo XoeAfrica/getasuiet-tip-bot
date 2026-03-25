@@ -11,7 +11,9 @@ X_CONSUMER_SECRET = os.getenv("X_CONSUMER_SECRET")
 X_ACCESS_TOKEN = os.getenv("X_ACCESS_TOKEN")
 X_ACCESS_TOKEN_SECRET = os.getenv("X_ACCESS_TOKEN_SECRET")
 SUI_PRV_KEY = os.getenv("SUI_PRV_KEY")
-RPC_URL = os.getenv("RPC_URL", "https://fullnode.mainnet.sui.io:443")
+RPC_URL = os.getenv("RPC_URL", "https://fullnode.testnet.sui.io:443")
+
+print("Starting GetASUiet Tip Bot... 💙☔️")
 
 # Connect to X
 client = tweepy.Client(
@@ -21,12 +23,15 @@ client = tweepy.Client(
     access_token_secret=X_ACCESS_TOKEN_SECRET
 )
 
-# Connect to Sui
-cfg = SuiConfig.user_config(rpc_url=RPC_URL, prv_keys=[SUI_PRV_KEY])
-sui_client = SyncClient(cfg)
-BOT_SUI_ADDRESS = str(cfg.active_address)
-
-print(f"🚀 Bot Sui address: {BOT_SUI_ADDRESS} (tell people to send SUI here!)")
+# Connect to Sui with better error handling
+try:
+    cfg = SuiConfig.user_config(rpc_url=RPC_URL, prv_keys=[SUI_PRV_KEY])
+    sui_client = SyncClient(cfg)
+    BOT_SUI_ADDRESS = str(cfg.active_address)
+    print(f"🚀 Bot Sui address: {BOT_SUI_ADDRESS} (send test SUI here!)")
+except Exception as e:
+    print(f"❌ Sui connection error: {e}")
+    raise
 
 # Database
 conn = sqlite3.connect('bot.db', check_same_thread=False)
@@ -82,7 +87,7 @@ def process_tip(tweet, tipper_handle, recipient_handle, amount):
         c.execute("INSERT OR IGNORE INTO users (x_handle, sui_address, balance) VALUES (?, ?, ?)", (recipient_handle.lower(), "pending", tip_mist - fee))
         conn.commit()
     update_balance(tipper_handle, new_tipper)
-    reply = f"💙☔️🪙💚🍭 Tip processed! {amount} $SUI from @{tipper_handle} → @{recipient_handle} (3% fee kept for bot). #GetASuiet"
+    reply = f"💙☔️🪙💚🍭 Tip processed! {amount} $SUI from @{tipper_handle} → @{recipient_handle} (3% fee kept). #GetASuiet"
     client.create_tweet(text=reply, in_reply_to_tweet_id=tweet.id)
 
 # Main loop
@@ -109,32 +114,31 @@ while True:
                 except:
                     tipper_handle = "user"
 
-                # Register command
                 if "register 0x" in text:
-                    addr = re.search(r"0x[a-f0-9]+", text).group(0)
-                    if register_user(tipper_handle, addr):
-                        client.create_tweet(text=f"✅ @{tipper_handle} Registered! 💙☔️ Send SUI to {BOT_SUI_ADDRESS} to deposit. #GetASuiet", in_reply_to_tweet_id=tid)
-                    else:
-                        client.create_tweet(text=f"@{tipper_handle} Already registered or error 💙", in_reply_to_tweet_id=tid)
+                    addr_match = re.search(r"0x[a-f0-9]+", text)
+                    if addr_match:
+                        addr = addr_match.group(0)
+                        if register_user(tipper_handle, addr):
+                            client.create_tweet(text=f"✅ @{tipper_handle} Registered! 💙☔️ Send test SUI to {BOT_SUI_ADDRESS} #GetASuiet", in_reply_to_tweet_id=tid)
+                        else:
+                            client.create_tweet(text=f"@{tipper_handle} Already registered or error 💙", in_reply_to_tweet_id=tid)
 
-                # Balance command
                 elif "balance" in text:
                     data = get_user(tipper_handle)
                     bal = data[1] / 1_000_000_000 if data else 0
-                    client.create_tweet(text=f"@{tipper_handle} Your balance: {bal} $SUI 💙☔️ #GetASuiet", in_reply_to_tweet_id=tid)
+                    client.create_tweet(text=f"@{tipper_handle} Your balance: {bal:.2f} $SUI 💙☔️ #GetASuiet", in_reply_to_tweet_id=tid)
 
-                # Tip command
                 else:
                     match = re.search(r'@(\w+)\s*(\d+\.?\d*)\s*sui?', text)
                     if match:
                         recipient = match.group(1)
                         amount = float(match.group(2))
-                        if amount > 50 or amount <= 0: continue
-                        process_tip(tweet, tipper_handle, recipient, amount)
-                        last_id = tid
-                        save_last_id(tid)
+                        if 0 < amount <= 50:
+                            process_tip(tweet, tipper_handle, recipient, amount)
+                            last_id = tid
+                            save_last_id(tid)
 
-        time.sleep(30)
+        time.sleep(25)
     except Exception as e:
-        print("Error:", e)
-        time.sleep(30)
+        print(f"Error: {e}")
+        time.sleep(25)
