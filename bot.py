@@ -95,8 +95,8 @@ while True:
                         reply = f"💙☔️🪙 {amount} $SUI tipped to @{recipient}! Thank you for tipping 🍭 #GetASuiet"
                         try:
                             client.create_tweet(text=reply, in_reply_to_tweet_id=tid)
-                        except:
-                            print("Could not post reply yet")
+                        except Exception as e:
+                            print(f"Could not post reply: {e}")
 
                 # Register
                 if "register 0x" in text:
