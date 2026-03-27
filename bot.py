@@ -23,6 +23,15 @@ client = tweepy.Client(
     access_token_secret=X_ACCESS_TOKEN_SECRET
 )
 
+# === AUTH TEST + BOT USER ID (this fixes the 401) ===
+try:
+    me = client.get_me()
+    print(f"✅ Authenticated as @{me.data.username} (ID: {me.data.id})")
+    BOT_USER_ID = me.data.id
+except Exception as e:
+    print(f"❌ Auth test failed: {e}")
+    BOT_USER_ID = None
+
 # Connect to Sui
 cfg = SuiConfig.user_config(rpc_url=RPC_URL, prv_keys=[SUI_PRV_KEY])
 sui_client = SyncClient(cfg)
@@ -64,20 +73,27 @@ def update_balance(x_handle, new_balance):
     c.execute("UPDATE users SET balance=? WHERE x_handle=?", (new_balance, x_handle.lower()))
     conn.commit()
 
-# Main loop with your requested changes
+# Main loop
 last_id = get_last_id()
 
 while True:
     try:
-        response = client.search_recent_tweets(
-            query="@GetASUiet",
-            max_results=10
-        )
-        if response.data:
+        # Use mentions endpoint instead of search (this is the fix for 401 on new apps)
+        if BOT_USER_ID:
+            response = client.get_users_mentions(
+                id=BOT_USER_ID,
+                max_results=10
+            )
+        else:
+            response = None
+            print("⚠️ Could not get mentions (auth issue)")
+
+        if response and response.data:
             for tweet in reversed(response.data):
                 tid = tweet.id
                 if tid <= last_id: continue
                 text = tweet.text.lower()
+
                 try:
                     user_resp = client.get_user(tweet.author_id)
                     tipper_handle = user_resp.data.username
@@ -90,7 +106,6 @@ while True:
                     recipient = match.group(1)
                     amount = float(match.group(2))
                     if 0 < amount <= 50:
-                        # Tip message with thank you
                         reply = f"💙☔️🪙 {amount} $SUI tipped to @{recipient}! Thank you for tipping 🍭 #GetASuiet"
                         try:
                             client.create_tweet(text=reply, in_reply_to_tweet_id=tid)
