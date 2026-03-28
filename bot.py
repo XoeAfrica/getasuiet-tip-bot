@@ -5,9 +5,9 @@ import re
 import tweepy
 from pysui import SuiConfig, SyncClient
 
-print("Starting GetASUiet Tip Bot - Fixed Simplified Version... 💙☔️")
+print("Starting GetASUiet Tip Bot - Stable Version (Waiting for Credits)... 💙☔️")
 
-# === CONFIG FROM RAILWAY ===
+# === CONFIG ===
 X_CONSUMER_KEY = os.getenv("X_CONSUMER_KEY")
 X_CONSUMER_SECRET = os.getenv("X_CONSUMER_SECRET")
 X_ACCESS_TOKEN = os.getenv("X_ACCESS_TOKEN")
@@ -24,7 +24,7 @@ client = tweepy.Client(
     access_token_secret=X_ACCESS_TOKEN_SECRET
 )
 
-# Auth test (no test tweet to reduce 403 risk during startup)
+# Auth
 try:
     me = client.get_me()
     print(f"✅ Authenticated as @{me.data.username} (ID: {me.data.id})")
@@ -33,13 +33,13 @@ except Exception as e:
     print(f"❌ Auth failed: {e}")
     BOT_USER_ID = None
 
-# Sui setup (kept for future real transfers)
+# Sui (for future real transfers)
 cfg = SuiConfig.user_config(rpc_url=RPC_URL, prv_keys=[SUI_PRV_KEY])
 sui_client = SyncClient(cfg)
 BOT_SUI_ADDRESS = str(cfg.active_address)
 print(f"🚀 Bot Sui address: {BOT_SUI_ADDRESS} (Testnet)")
 
-print("🤖 GetASUiet Tip Bot is running! 💙☔️🪙🍭")
+print("🤖 GetASUiet Tip Bot is running stably! 💙☔️🪙🍭")
 
 # Database
 conn = sqlite3.connect('bot.db', check_same_thread=False)
@@ -71,7 +71,6 @@ def get_user_address(x_handle):
     row = c.fetchone()
     return row[0] if row else None
 
-# Main loop
 last_id = get_last_id()
 
 while True:
@@ -79,7 +78,12 @@ while True:
         print("🔄 Checking mentions...")
         response = None
         if BOT_USER_ID:
-            response = client.get_users_mentions(id=BOT_USER_ID, max_results=10)
+            try:
+                response = client.get_users_mentions(id=BOT_USER_ID, max_results=10)
+            except tweepy.errors.Unauthorized as auth_err:
+                print(f"❌ X API Unauthorized (401): {auth_err} - This is expected until credits/permissions are fixed.")
+            except Exception as api_err:
+                print(f"API error: {api_err}")
 
         if response and hasattr(response, 'data') and response.data:
             for tweet in reversed(response.data):
@@ -95,13 +99,13 @@ while True:
                 except:
                     tipper_handle = "unknown"
 
-                # === TIP LOGIC (Social reply only for now) ===
+                # Tip reply (your exact format)
                 match = re.search(r'@(\w+)\s*\+?(\d+\.?\d*)\s*sui?', text)
                 if match:
                     recipient_handle = match.group(1)
                     try:
                         amount = float(match.group(2))
-                    except ValueError:
+                    except:
                         amount = 0
 
                     if amount > 0:
@@ -109,17 +113,16 @@ while True:
 
                         try:
                             client.create_tweet(text=reply, in_reply_to_tweet_id=tid)
-                            print(f"✅ Reply posted for {amount} SUI tip to @{recipient_handle}")
+                            print(f"✅ Reply posted for {amount} SUI tip")
                         except Exception as reply_err:
-                            print(f"❌ Could not post reply: {reply_err}")
+                            print(f"❌ Reply failed: {reply_err}")
 
-                # Register logic
+                # Register
                 if "register 0x" in text:
                     addr_match = re.search(r"0x[a-f0-9]{64}", text)
                     if addr_match:
-                        addr_str = addr_match.group(0)
-                        if register_user(tipper_handle, addr_str):
-                            reply = "✅ Registered successfully! 💙☔️ You can now receive tips 🍭 #GetASuiet"
+                        if register_user(tipper_handle, addr_match.group(0)):
+                            reply = "✅ Registered! 💙☔️ You can now receive tips 🍭 #GetASuiet"
                         else:
                             reply = "✅ Already registered 💙 #GetASuiet"
                         try:
@@ -130,7 +133,8 @@ while True:
                 last_id = tid
                 save_last_id(tid)
 
-        time.sleep(15)
+        time.sleep(30)  # Longer sleep to reduce load while waiting
+
     except Exception as e:
         print(f"Main loop error: {e}")
-        time.sleep(15)
+        time.sleep(30)
