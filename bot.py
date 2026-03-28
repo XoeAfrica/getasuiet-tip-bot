@@ -23,13 +23,17 @@ client = tweepy.Client(
     access_token_secret=X_ACCESS_TOKEN_SECRET
 )
 
-# === AUTH TEST + BOT USER ID (this fixes the 401) ===
+# === AUTH TEST + TEST TWEET (this activates the token) ===
 try:
     me = client.get_me()
     print(f"✅ Authenticated as @{me.data.username} (ID: {me.data.id})")
     BOT_USER_ID = me.data.id
+
+    # One-time test tweet to fully activate the new app token
+    test_tweet = client.create_tweet(text="🤖 GetASUiet Tip Bot is now LIVE on mainnet! 💙☔️🍭 #GetASuiet")
+    print(f"✅ Test tweet posted! ID: {test_tweet.data.id}")
 except Exception as e:
-    print(f"❌ Auth test failed: {e}")
+    print(f"❌ Auth/test tweet failed: {e}")
     BOT_USER_ID = None
 
 # Connect to Sui
@@ -40,7 +44,7 @@ print(f"🚀 Bot Sui address: {BOT_SUI_ADDRESS}")
 
 print("🤖 GetASUiet Tip Bot is running! 💙☔️🪙💚🍭")
 
-# Database
+# Database (same as before)
 conn = sqlite3.connect('bot.db', check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS users (x_handle TEXT PRIMARY KEY, sui_address TEXT UNIQUE, balance INTEGER DEFAULT 0)''')
@@ -73,20 +77,27 @@ def update_balance(x_handle, new_balance):
     c.execute("UPDATE users SET balance=? WHERE x_handle=?", (new_balance, x_handle.lower()))
     conn.commit()
 
-# Main loop
+# Main loop with retry
 last_id = get_last_id()
 
 while True:
     try:
-        # Use mentions endpoint instead of search (this is the fix for 401 on new apps)
         if BOT_USER_ID:
-            response = client.get_users_mentions(
-                id=BOT_USER_ID,
-                max_results=10
-            )
+            # Retry mentions call up to 3 times (prevents crash)
+            for attempt in range(3):
+                try:
+                    response = client.get_users_mentions(
+                        id=BOT_USER_ID,
+                        max_results=10
+                    )
+                    break
+                except Exception as e:
+                    if attempt == 2:
+                        raise
+                    print(f"Mentions attempt {attempt+1} failed, retrying...")
+                    time.sleep(5)
         else:
             response = None
-            print("⚠️ Could not get mentions (auth issue)")
 
         if response and response.data:
             for tweet in reversed(response.data):
@@ -100,7 +111,7 @@ while True:
                 except:
                     tipper_handle = "user"
 
-                # Support @username +amount or @username amount
+                # Tip logic
                 match = re.search(r'@(\w+)\s*\+?(\d+\.?\d*)\s*sui?', text)
                 if match:
                     recipient = match.group(1)
@@ -110,9 +121,9 @@ while True:
                         try:
                             client.create_tweet(text=reply, in_reply_to_tweet_id=tid)
                         except:
-                            print("Could not post reply (X permissions still processing)")
+                            print("Could not post reply")
 
-                # Register
+                # Register logic (same)
                 if "register 0x" in text:
                     addr = re.search(r"0x[a-f0-9]+", text)
                     if addr:
@@ -130,7 +141,7 @@ while True:
                             except:
                                 pass
 
-                # Balance
+                # Balance logic (same)
                 if "balance" in text:
                     data = get_user(tipper_handle)
                     bal = data[1] / 1_000_000_000 if data else 0
