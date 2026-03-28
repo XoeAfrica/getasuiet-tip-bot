@@ -5,7 +5,7 @@ import re
 import tweepy
 from pysui import SuiConfig, SyncClient
 
-print("Starting GetASUiet Tip Bot - Ultra Defensive Stable Version... 💙☔️")
+print("Starting GetASUiet Tip Bot - Bulletproof Stable Version... 💙☔️")
 
 # CONFIG
 X_CONSUMER_KEY = os.getenv("X_CONSUMER_KEY")
@@ -23,20 +23,20 @@ client = tweepy.Client(
     access_token_secret=X_ACCESS_TOKEN_SECRET
 )
 
+BOT_USER_ID = None
 try:
     me = client.get_me()
     print(f"✅ Authenticated as @{me.data.username} (ID: {me.data.id})")
     BOT_USER_ID = me.data.id
 except Exception as e:
     print(f"❌ Auth failed: {e}")
-    BOT_USER_ID = None
 
 cfg = SuiConfig.user_config(rpc_url=RPC_URL, prv_keys=[SUI_PRV_KEY])
 sui_client = SyncClient(cfg)
 BOT_SUI_ADDRESS = str(cfg.active_address)
 print(f"🚀 Bot Sui address: {BOT_SUI_ADDRESS} (Testnet)")
 
-print("🤖 GetASUiet Tip Bot is running ULTRA STABLE! 💙☔️🪙🍭")
+print("🤖 GetASUiet Tip Bot is running BULLETPROOF STABLE! 💙☔️🪙🍭")
 
 # Database
 conn = sqlite3.connect('bot.db', check_same_thread=False)
@@ -79,7 +79,7 @@ while True:
             try:
                 response = client.get_users_mentions(id=BOT_USER_ID, max_results=10)
             except Exception as api_err:
-                print(f"❌ X API Error: {str(api_err)[:120]}")
+                print(f"❌ X API Error: {str(api_err)[:150]}")
 
         if response and hasattr(response, 'data') and response.data:
             for tweet in reversed(response.data):
@@ -96,7 +96,7 @@ while True:
                 except:
                     pass
 
-                # Tip
+                # Tip logic
                 match = re.search(r'@(\w+)\s*\+?(\d+\.?\d*)\s*sui?', text)
                 if match:
                     recipient_handle = match.group(1)
@@ -128,8 +128,8 @@ while True:
                 last_id = tid
                 save_last_id(tid)
 
-        time.sleep(45)  # Longer sleep to reduce pressure
+        time.sleep(60)  # 1 minute sleep to reduce pressure
 
-    except Exception as outer_e:
-        print(f"Outer loop error (caught): {str(outer_e)[:100]}")
-        time.sleep(45)
+    except Exception as e:
+        print(f"Outer safety net caught: {str(e)[:100]}")
+        time.sleep(60)
