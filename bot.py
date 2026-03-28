@@ -5,7 +5,7 @@ import re
 import tweepy
 from pysui import SuiConfig, SyncClient
 
-print("Starting GetASUiet Tip Bot - Stable Version (Waiting for Credits)... 💙☔️")
+print("Starting GetASUiet Tip Bot - Ultra Stable Version... 💙☔️")
 
 # === CONFIG ===
 X_CONSUMER_KEY = os.getenv("X_CONSUMER_KEY")
@@ -16,7 +16,6 @@ SUI_PRV_KEY = os.getenv("SUI_PRV_KEY")
 
 RPC_URL = os.getenv("RPC_URL", "https://sui-testnet-rpc.publicnode.com")
 
-# Connect to X
 client = tweepy.Client(
     consumer_key=X_CONSUMER_KEY,
     consumer_secret=X_CONSUMER_SECRET,
@@ -24,7 +23,6 @@ client = tweepy.Client(
     access_token_secret=X_ACCESS_TOKEN_SECRET
 )
 
-# Auth
 try:
     me = client.get_me()
     print(f"✅ Authenticated as @{me.data.username} (ID: {me.data.id})")
@@ -33,13 +31,12 @@ except Exception as e:
     print(f"❌ Auth failed: {e}")
     BOT_USER_ID = None
 
-# Sui (for future real transfers)
 cfg = SuiConfig.user_config(rpc_url=RPC_URL, prv_keys=[SUI_PRV_KEY])
 sui_client = SyncClient(cfg)
 BOT_SUI_ADDRESS = str(cfg.active_address)
 print(f"🚀 Bot Sui address: {BOT_SUI_ADDRESS} (Testnet)")
 
-print("🤖 GetASUiet Tip Bot is running stably! 💙☔️🪙🍭")
+print("🤖 GetASUiet Tip Bot is running ultra stably! 💙☔️🪙🍭")
 
 # Database
 conn = sqlite3.connect('bot.db', check_same_thread=False)
@@ -77,13 +74,12 @@ while True:
     try:
         print("🔄 Checking mentions...")
         response = None
+        
         if BOT_USER_ID:
             try:
                 response = client.get_users_mentions(id=BOT_USER_ID, max_results=10)
-            except tweepy.errors.Unauthorized as auth_err:
-                print(f"❌ X API Unauthorized (401): {auth_err} - This is expected until credits/permissions are fixed.")
-            except Exception as api_err:
-                print(f"API error: {api_err}")
+            except Exception as api_err:   # Catch ALL API errors
+                print(f"❌ X API Error: {api_err} - Expected until credits/permissions fixed.")
 
         if response and hasattr(response, 'data') and response.data:
             for tweet in reversed(response.data):
@@ -99,7 +95,7 @@ while True:
                 except:
                     tipper_handle = "unknown"
 
-                # Tip reply (your exact format)
+                # Tip logic - your exact reply
                 match = re.search(r'@(\w+)\s*\+?(\d+\.?\d*)\s*sui?', text)
                 if match:
                     recipient_handle = match.group(1)
@@ -113,7 +109,7 @@ while True:
 
                         try:
                             client.create_tweet(text=reply, in_reply_to_tweet_id=tid)
-                            print(f"✅ Reply posted for {amount} SUI tip")
+                            print(f"✅ Reply posted for {amount} SUI")
                         except Exception as reply_err:
                             print(f"❌ Reply failed: {reply_err}")
 
@@ -121,20 +117,18 @@ while True:
                 if "register 0x" in text:
                     addr_match = re.search(r"0x[a-f0-9]{64}", text)
                     if addr_match:
-                        if register_user(tipper_handle, addr_match.group(0)):
-                            reply = "✅ Registered! 💙☔️ You can now receive tips 🍭 #GetASuiet"
-                        else:
-                            reply = "✅ Already registered 💙 #GetASuiet"
+                        addr_str = addr_match.group(0)
+                        msg = "✅ Registered successfully! 💙☔️ You can now receive tips 🍭 #GetASuiet" if register_user(tipper_handle, addr_str) else "✅ Already registered 💙 #GetASuiet"
                         try:
-                            client.create_tweet(text=reply, in_reply_to_tweet_id=tid)
+                            client.create_tweet(text=msg, in_reply_to_tweet_id=tid)
                         except:
                             pass
 
                 last_id = tid
                 save_last_id(tid)
 
-        time.sleep(30)  # Longer sleep to reduce load while waiting
+        time.sleep(30)
 
     except Exception as e:
-        print(f"Main loop error: {e}")
+        print(f"Main loop error (non-fatal): {e}")
         time.sleep(30)
