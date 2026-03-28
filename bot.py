@@ -5,7 +5,7 @@ import re
 import tweepy
 from pysui import SuiConfig, SyncClient
 
-print("Starting GetASUiet Tip Bot - Bulletproof Stable Version... 💙☔️")
+print("Starting GetASUiet Tip Bot - Minimal Stable (Mentions Disabled)... 💙☔️")
 
 # CONFIG
 X_CONSUMER_KEY = os.getenv("X_CONSUMER_KEY")
@@ -23,113 +23,40 @@ client = tweepy.Client(
     access_token_secret=X_ACCESS_TOKEN_SECRET
 )
 
-BOT_USER_ID = None
 try:
     me = client.get_me()
     print(f"✅ Authenticated as @{me.data.username} (ID: {me.data.id})")
     BOT_USER_ID = me.data.id
 except Exception as e:
     print(f"❌ Auth failed: {e}")
+    BOT_USER_ID = None
 
 cfg = SuiConfig.user_config(rpc_url=RPC_URL, prv_keys=[SUI_PRV_KEY])
 sui_client = SyncClient(cfg)
 BOT_SUI_ADDRESS = str(cfg.active_address)
 print(f"🚀 Bot Sui address: {BOT_SUI_ADDRESS} (Testnet)")
 
-print("🤖 GetASUiet Tip Bot is running BULLETPROOF STABLE! 💙☔️🪙🍭")
+print("🤖 GetASUiet Tip Bot is running MINIMAL STABLE (mentions disabled until credits added)... 💙☔️🪙🍭")
 
-# Database
+# Database (kept for future)
 conn = sqlite3.connect('bot.db', check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS users (x_handle TEXT PRIMARY KEY, sui_address TEXT UNIQUE)''')
 c.execute('''CREATE TABLE IF NOT EXISTS last_tweet (id INTEGER)''')
 conn.commit()
 
-def get_last_id():
-    c.execute("SELECT id FROM last_tweet")
-    row = c.fetchone()
-    return row[0] if row else 0
-
 def save_last_id(tid):
     c.execute("DELETE FROM last_tweet")
     c.execute("INSERT INTO last_tweet (id) VALUES (?)", (tid,))
     conn.commit()
 
-def register_user(x_handle, sui_address):
-    try:
-        c.execute("INSERT INTO users (x_handle, sui_address) VALUES (?, ?)", (x_handle.lower(), sui_address))
-        conn.commit()
-        return True
-    except:
-        return False
+print("✅ Bot is stable and waiting for credits. No mentions checking for now.")
 
-def get_user_address(x_handle):
-    c.execute("SELECT sui_address FROM users WHERE x_handle=?", (x_handle.lower(),))
-    row = c.fetchone()
-    return row[0] if row else None
-
-last_id = get_last_id()
-
+# Keep the process alive
 while True:
     try:
-        print("🔄 Checking mentions...")
-
-        response = None
-        if BOT_USER_ID:
-            try:
-                response = client.get_users_mentions(id=BOT_USER_ID, max_results=10)
-            except Exception as api_err:
-                print(f"❌ X API Error: {str(api_err)[:150]}")
-
-        if response and hasattr(response, 'data') and response.data:
-            for tweet in reversed(response.data):
-                tid = tweet.id
-                if tid <= last_id:
-                    continue
-
-                text = tweet.text.lower()
-
-                tipper_handle = "unknown"
-                try:
-                    user_resp = client.get_user(tweet.author_id)
-                    tipper_handle = user_resp.data.username
-                except:
-                    pass
-
-                # Tip logic
-                match = re.search(r'@(\w+)\s*\+?(\d+\.?\d*)\s*sui?', text)
-                if match:
-                    recipient_handle = match.group(1)
-                    try:
-                        amount = float(match.group(2))
-                    except:
-                        amount = 0
-
-                    if amount > 0:
-                        reply = f"🎁🎉{amount}SUI tipped to @{recipient_handle} (3% maintenance fee applied) #GetASuiet🍭. Thank you for tipping."
-
-                        try:
-                            client.create_tweet(text=reply, in_reply_to_tweet_id=tid)
-                            print(f"✅ Reply posted for {amount} SUI")
-                        except Exception as r_err:
-                            print(f"Reply failed: {r_err}")
-
-                # Register
-                if "register 0x" in text:
-                    addr_match = re.search(r"0x[a-f0-9]{64}", text)
-                    if addr_match:
-                        addr_str = addr_match.group(0)
-                        msg = "✅ Registered! 💙☔️ You can now receive tips 🍭 #GetASuiet" if register_user(tipper_handle, addr_str) else "✅ Already registered 💙 #GetASuiet"
-                        try:
-                            client.create_tweet(text=msg, in_reply_to_tweet_id=tid)
-                        except:
-                            pass
-
-                last_id = tid
-                save_last_id(tid)
-
-        time.sleep(60)  # 1 minute sleep to reduce pressure
-
+        print("🤖 Bot is alive (mentions disabled). Top up credits to enable tipping.")
+        time.sleep(120)  # Sleep 2 minutes
     except Exception as e:
-        print(f"Outer safety net caught: {str(e)[:100]}")
-        time.sleep(60)
+        print(f"Loop error: {e}")
+        time.sleep(120)
