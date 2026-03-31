@@ -73,13 +73,14 @@ def get_user_address(x_handle):
 
 last_id = get_last_id()
 
-# Strong variations to avoid 403 duplicate content
+# Strong variations to avoid 403
 thank_you_phrases = [
-    "Thanks for tipping! 💙",
-    "Appreciate the support ☔️",
+    "Thanks for the tip! 💙",
+    "Appreciate your support ☔️",
     "Much love for this tip 🍭",
     "Awesome tip, thank you! 🪙",
-    "Grateful for your tip ✨"
+    "Grateful for your generosity ✨",
+    "Thanks a lot! Keep tipping 🚀"
 ]
 
 while True:
@@ -101,7 +102,7 @@ while True:
 
                 text = tweet.text.lower()
 
-                # Get tipper safely
+                # Get tipper username safely
                 try:
                     if hasattr(tweet, 'author_id') and tweet.author_id:
                         user_resp = client.get_user(id=tweet.author_id, user_auth=True)
@@ -112,70 +113,19 @@ while True:
                     print(f"⚠️ Could not get user info for tweet {tid}: {user_err}")
                     tipper_handle = "unknown"
 
-                # === REGISTER LOGIC (moved out so it always checks) ===
+                # === REGISTER LOGIC (independent + better logging) ===
                 if "register 0x" in text:
                     addr_match = re.search(r"0x[a-f0-9]{64}", text)
                     if addr_match:
                         addr_str = addr_match.group(0)
                         success = register_user(tipper_handle, addr_str)
-                        msg = "✅ Registered successfully! 💙☔️ You can now receive tips 🍭 #GetASuiet" if success else "✅ Already registered 💙 #GetASuiet"
+                        if success:
+                            msg = "✅ Registered successfully! 💙☔️ You can now receive tips 🍭 #GetASuiet"
+                            print(f"✅ Registration successful for @{tipper_handle}")
+                        else:
+                            msg = "✅ Already registered 💙 #GetASuiet"
+                            print(f"ℹ️ @{tipper_handle} was already registered")
+                        
                         try:
                             client.create_tweet(text=msg, in_reply_to_tweet_id=tid, user_auth=True)
-                            print(f"✅ Registration reply sent for @{tipper_handle}")
-                        except Exception as reg_err:
-                            print(f"❌ Registration reply failed: {reg_err}")
-                        last_id = tid
-                        save_last_id(tid)
-                        continue  # Skip tip logic for register tweets
-
-                # === TIP LOGIC ===
-                match = re.search(r'@(\w+)\s*\+?(\d+\.?\d*)\s*sui?', text)
-                if match:
-                    recipient_handle = match.group(1)
-                    try:
-                        amount = float(match.group(2))
-                    except:
-                        amount = 0
-
-                    if amount > 0:
-                        fee = round(amount * 0.03, 4)
-                        recipient_amount = round(amount - fee, 4)
-
-                        print(f"💰 Processing tip: {amount} SUI → Fee: {fee} SUI → Recipient: {recipient_amount} SUI")
-
-                        recipient_addr = get_user_address(recipient_handle)
-                        if recipient_addr:
-                            try:
-                                txn = SyncTransaction(sui_client)
-                                txn.transfer_sui(
-                                    recipient=SuiAddress(recipient_addr),
-                                    amount=int(recipient_amount * 1_000_000_000),
-                                    sender=BOT_SUI_ADDRESS
-                                )
-                                txn.execute()
-                                print(f"✅ Sent {recipient_amount} SUI to @{recipient_handle}")
-                            except Exception as tx_err:
-                                print(f"❌ Sui transfer failed: {tx_err}")
-                        else:
-                            print(f"⚠️ @{recipient_handle} not registered - no transfer sent")
-
-                        # Reply with strong variation
-                        thank_you = random.choice(thank_you_phrases)
-                        emoji_set = random.choice(["💙☔️", "🪙🍭", "🎉✨", "🚀🔥"])
-                        unique_num = random.randint(10, 99)
-                        reply = f"🎁🎉@{recipient_handle} +{recipient_amount} SUI #GetASuiet 🍭 @{me.data.username} {thank_you} {emoji_set}{unique_num}"
-
-                        try:
-                            client.create_tweet(text=reply, in_reply_to_tweet_id=tid, user_auth=True)
-                            print(f"✅ Replied: {reply}")
-                        except Exception as reply_err:
-                            print(f"❌ Reply failed: {reply_err}")
-
-                last_id = tid
-                save_last_id(tid)
-
-        time.sleep(90)
-
-    except Exception as e:
-        print(f"Main loop error: {e}")
-        time.sleep(90)
+                            print(f"✅ Registration​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
