@@ -123,11 +123,13 @@ while True:
                         save_last_id(tid)
                         continue
 
-                # === FIXED TIP LOGIC - Better handling for @getasu iet ===
-                # Looks for @GetASUiet followed by the recipient (even with space)
-                match = re.search(r'@getasuiet\s+@?([^\s+]+)\s*\+?(\d+\.?\d*)\s*sui?', text, re.IGNORECASE)
+                # === FIXED TIP LOGIC - Handles "@getasu iet" correctly ===
+                # Looks for @GetASUiet followed by recipient (allows space in name)
+                match = re.search(r'@getasuiet\s+@?([a-zA-Z0-9_]+(?:\s+[a-zA-Z0-9_]+)?)\s*\+?(\d+\.?\d*)\s*sui?', text, re.IGNORECASE)
                 if match:
-                    recipient_handle = match.group(1).strip().replace(" ", "")
+                    raw_recipient = match.group(1).strip()
+                    recipient_handle = raw_recipient.replace(" ", "")  # Remove space for storage
+
                     try:
                         amount = float(match.group(2))
                     except:
@@ -137,7 +139,7 @@ while True:
                         fee = round(amount * 0.03, 4)
                         net_amount = round(amount - fee, 4)
 
-                        print(f"💰 Tip detected: {amount} SUI → Net {net_amount} SUI to @{recipient_handle}")
+                        print(f"💰 Tip detected: {amount} SUI → Net {net_amount} SUI to @{raw_recipient} (clean: @{recipient_handle})")
 
                         recipient_addr = get_user_address(recipient_handle)
                         if recipient_addr:
@@ -155,11 +157,11 @@ while True:
                         else:
                             print(f"⚠️ @{recipient_handle} not registered - no transfer sent")
 
-                        # Reply
+                        # Reply (shows the name as you typed it)
                         thank = random.choice(thank_you_phrases)
                         emoji = random.choice(["💙", "☔️", "🍭", "🪙", "🎉"])
                         num = random.randint(11, 99)
-                        reply = f"🎁🎉 @{recipient_handle} +{net_amount} SUI #GetASuiet 🍭 @{me.data.username} {thank} {emoji}{num}"
+                        reply = f"🎁🎉 @{raw_recipient} +{net_amount} SUI #GetASuiet 🍭 @{me.data.username} {thank} {emoji}{num}"
 
                         try:
                             client.create_tweet(text=reply, in_reply_to_tweet_id=tid, user_auth=True)
