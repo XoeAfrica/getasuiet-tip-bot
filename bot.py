@@ -103,7 +103,7 @@ while True:
                 except:
                     tipper_handle = "unknown"
 
-                # Register logic
+                # === REGISTER LOGIC ===
                 if "register 0x" in text:
                     addr_match = re.search(r"0x[a-f0-9]{64}", text)
                     if addr_match:
@@ -121,8 +121,9 @@ while True:
                         save_last_id(tid)
                         continue
 
-                # Tip logic - clean format @GetASUiet @getasuiet +5 sui
-                match = re.search(r'@getasuiet\s+@?([a-zA-Z0-9_]+)\s*\+?(\d+\.?\d*)\s*sui?', text, re.IGNORECASE)
+                # === TIP LOGIC - Matches your new input format ===
+                # Looks for 🎁🎉 @username +amount SUI #GetASuiet
+                match = re.search(r'🎁🎉\s*@?([a-zA-Z0-9_]+)\s*\+?(\d+\.?\d*)\s*sui?', text, re.IGNORECASE)
                 if match:
                     recipient_handle = match.group(1).strip()
 
@@ -153,7 +154,7 @@ while True:
                         else:
                             print(f"⚠️ @{recipient_handle} not registered - no transfer sent")
 
-                        # Your original clean format
+                        # Your exact requested reply format
                         reply = f"🎁🎉@{recipient_handle} +{net_amount} SUI #GetASuiet 🍭"
 
                         try:
