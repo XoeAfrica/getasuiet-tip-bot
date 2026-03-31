@@ -10,7 +10,7 @@ from pysui.sui.sui_txn import SyncTransaction
 
 print("Starting GetASUiet Tip Bot - Full Version with 3% Fee... 💙☔️")
 
-# === CONFIG ===
+# CONFIG
 X_CONSUMER_KEY = os.getenv("X_CONSUMER_KEY")
 X_CONSUMER_SECRET = os.getenv("X_CONSUMER_SECRET")
 X_ACCESS_TOKEN = os.getenv("X_ACCESS_TOKEN")
@@ -73,21 +73,17 @@ def get_user_address(x_handle):
 
 last_id = get_last_id()
 
-thank_you_phrases = [
-    "Thanks for the tip! 💙", "Appreciate your support ☔️", "Much love for this tip 🍭",
-    "Awesome tip, thank you! 🪙", "Grateful for your generosity ✨", "Thanks a lot! Keep tipping 🚀"
-]
+thank_you_phrases = ["Thanks!", "Appreciate it!", "Love this tip!", "Grateful!", "Awesome!", "Thanks a ton!"]
 
 while True:
     try:
         print("🔄 Checking mentions...")
         response = None
-        
         if BOT_USER_ID:
             try:
                 response = client.get_users_mentions(id=BOT_USER_ID, max_results=10, user_auth=True)
-            except Exception as api_err:
-                print(f"❌ X API Error: {str(api_err)[:150]}")
+            except Exception as e:
+                print(f"❌ Mention fetch error: {e}")
 
         if response and hasattr(response, 'data') and response.data:
             for tweet in reversed(response.data):
@@ -97,34 +93,35 @@ while True:
 
                 text = tweet.text.lower()
 
+                # Get tipper
                 try:
                     if hasattr(tweet, 'author_id') and tweet.author_id:
                         user_resp = client.get_user(id=tweet.author_id, user_auth=True)
                         tipper_handle = user_resp.data.username
                     else:
                         tipper_handle = "unknown"
-                except Exception as user_err:
-                    print(f"⚠️ Could not get user info for tweet {tid}: {user_err}")
+                except:
                     tipper_handle = "unknown"
 
-                # === REGISTER LOGIC ===
+                # Register logic
                 if "register 0x" in text:
                     addr_match = re.search(r"0x[a-f0-9]{64}", text)
                     if addr_match:
                         addr_str = addr_match.group(0)
                         success = register_user(tipper_handle, addr_str)
-                        msg = "✅ Registered successfully! 💙☔️ You can now receive tips 🍭 #GetASuiet" if success else "✅ Already registered 💙 #GetASuiet"
-                        print(f"Registration for @{tipper_handle}: {'Success' if success else 'Already registered'}")
+                        status = "Success" if success else "Already registered"
+                        print(f"Registration for @{tipper_handle}: {status}")
+                        msg = f"✅ {status}! 💙☔️ You can now receive tips 🍭 #GetASuiet"
                         try:
                             client.create_tweet(text=msg, in_reply_to_tweet_id=tid, user_auth=True)
                             print(f"✅ Registration reply sent")
-                        except Exception as reg_err:
-                            print(f"❌ Registration reply failed: {reg_err}")
+                        except Exception as e:
+                            print(f"❌ Registration reply failed: {e}")
                         last_id = tid
                         save_last_id(tid)
                         continue
 
-                # === TIP LOGIC ===
+                # Tip logic
                 match = re.search(r'@(\w+)\s*(\w+)?\s*\+?(\d+\.?\d*)\s*sui?', text)
                 if match:
                     part1 = match.group(1)
@@ -138,43 +135,39 @@ while True:
 
                     if amount > 0:
                         fee = round(amount * 0.03, 4)
-                        recipient_amount = round(amount - fee, 4)
+                        net_amount = round(amount - fee, 4)
 
-                        print(f"💰 Processing tip: {amount} SUI → Fee: {fee} SUI → Net: {recipient_amount} SUI to @{recipient_handle}")
+                        print(f"💰 Tip detected: {amount} SUI → Net {net_amount} SUI to @{recipient_handle}")
 
                         recipient_addr = get_user_address(recipient_handle)
                         if recipient_addr:
                             try:
                                 txn = SyncTransaction(sui_client)
-                                txn.transfer_sui(
-                                    recipient=SuiAddress(recipient_addr),
-                                    amount=int(recipient_amount * 1_000_000_000),
-                                    sender=BOT_SUI_ADDRESS
-                                )
+                                txn.transfer_sui(recipient=SuiAddress(recipient_addr), amount=int(net_amount * 1_000_000_000), sender=BOT_SUI_ADDRESS)
                                 txn.execute()
-                                print(f"✅ Sent {recipient_amount} SUI (net) to @{recipient_handle}")
-                            except Exception as tx_err:
-                                print(f"❌ Sui transfer failed: {tx_err}")  # This won't crash the bot now
+                                print(f"✅ Sent {net_amount} SUI to @{recipient_handle}")
+                            except Exception as e:
+                                print(f"❌ Sui transfer failed: {e}")
                         else:
-                            print(f"⚠️ @{recipient_handle} not registered - no transfer sent")
+                            print(f"⚠️ @{recipient_handle} not registered")
 
-                        # Strong variation reply
-                        thank_you = random.choice(thank_you_phrases)
-                        emoji_set = random.choice(["💙☔️", "🪙🍭", "🎉✨", "🚀🔥", "🌟💎"])
-                        unique_num = random.randint(10, 99)
-                        reply = f"🎁🎉@{recipient_handle} +{recipient_amount} SUI #GetASuiet 🍭 @{me.data.username} {thank_you} {emoji_set}{unique_num}"
+                        # Very varied reply
+                        thank = random.choice(thank_you_phrases)
+                        emoji = random.choice(["💙", "☔️", "🍭", "🪙", "🎉", "✨"])
+                        num = random.randint(11, 99)
+                        reply = f"🎁🎉 @{recipient_handle} received +{net_amount} SUI #GetASuiet 🍭 @{me.data.username} {thank} {emoji}{num}"
 
                         try:
                             client.create_tweet(text=reply, in_reply_to_tweet_id=tid, user_auth=True)
-                            print(f"✅ Replied: {reply}")
-                        except Exception as reply_err:
-                            print(f"❌ Reply failed: {reply_err}")
+                            print(f"✅ Reply posted: {reply}")
+                        except Exception as e:
+                            print(f"❌ Reply failed: {e}")
 
                 last_id = tid
                 save_last_id(tid)
 
-        time.sleep(180)  # 3 minutes - safer for X limits
+        time.sleep(180)  # 3 minutes
 
     except Exception as e:
-        print(f"❌ Main loop error (bot continues): {e}")
+        print(f"Main loop error (continuing): {e}")
         time.sleep(180)
