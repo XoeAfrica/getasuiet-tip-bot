@@ -3,14 +3,11 @@ import time
 import sqlite3
 import re
 import tweepy
-import random
 from pysui import SuiConfig, SyncClient
-from pysui.sui.sui_types import SuiAddress
-from pysui.sui.sui_txn import SyncTransaction
 
 print("Starting GetASUiet Tip Bot - Full Version with 3% Fee... 💙☔️")
 
-# === CONFIG ===
+# CONFIG
 X_CONSUMER_KEY = os.getenv("X_CONSUMER_KEY")
 X_CONSUMER_SECRET = os.getenv("X_CONSUMER_SECRET")
 X_ACCESS_TOKEN = os.getenv("X_ACCESS_TOKEN")
@@ -81,4 +78,22 @@ while True:
         response = None
         if BOT_USER_ID:
             try:
-                response = client.get_users_mentions(id=BOT_USER​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
+                response = client.get_users_mentions(id=BOT_USER_ID, max_results=10, user_auth=True)
+            except Exception as e:
+                print(f"❌ Mention fetch error: {e}")
+
+        if response and hasattr(response, 'data') and response.data:
+            for tweet in reversed(response.data):
+                tid = tweet.id
+                if tid <= last_id:
+                    continue
+
+                text = tweet.text.lower()
+
+                # Get tipper
+                try:
+                    if hasattr(tweet, 'author_id') and tweet.author_id:
+                        user_resp = client.get_user(id=tweet.author_id, user_auth=True)
+                        tipper_handle = user_resp.data.username
+                    else:
+                        tipper​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
