@@ -10,7 +10,7 @@ from pysui.sui.sui_txn import SyncTransaction
 
 print("Starting GetASUiet Tip Bot - Full Version with 3% Fee... 💙☔️")
 
-# === CONFIG ===
+# CONFIG
 X_CONSUMER_KEY = os.getenv("X_CONSUMER_KEY")
 X_CONSUMER_SECRET = os.getenv("X_CONSUMER_SECRET")
 X_ACCESS_TOKEN = os.getenv("X_ACCESS_TOKEN")
@@ -95,7 +95,6 @@ while True:
 
                 text = tweet.text.lower()
 
-                # Get tipper
                 try:
                     if hasattr(tweet, 'author_id') and tweet.author_id:
                         user_resp = client.get_user(id=tweet.author_id, user_auth=True)
@@ -105,5 +104,72 @@ while True:
                 except:
                     tipper_handle = "unknown"
 
-                # === REGISTER LOGIC ===
-​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
+                # Register logic
+                if "register 0x" in text:
+                    addr_match = re.search(r"0x[a-f0-9]{64}", text)
+                    if addr_match:
+                        addr_str = addr_match.group(0)
+                        success = register_user(tipper_handle, addr_str)
+                        status = "Success" if success else "Already registered"
+                        print(f"Registration for @{tipper_handle}: {status}")
+                        msg = f"✅ {status}! 💙☔️ You can now receive tips 🍭 #GetASuiet"
+                        try:
+                            client.create_tweet(text=msg, in_reply_to_tweet_id=tid, user_auth=True)
+                            print(f"✅ Registration reply sent")
+                        except Exception as e:
+                            print(f"❌ Registration reply failed: {e}")
+                        last_id = tid
+                        save_last_id(tid)
+                        continue
+
+                # Tip logic - clean format: @GetASUiet @getasuiet +5 sui
+                match = re.search(r'@getasuiet\s+@?([a-zA-Z0-9_]+)\s*\+?(\d+\.?\d*)\s*sui?', text, re.IGNORECASE)
+                if match:
+                    recipient_handle = match.group(1).strip()
+
+                    try:
+                        amount = float(match.group(2))
+                    except:
+                        amount = 0
+
+                    if amount > 0:
+                        fee = round(amount * 0.03, 4)
+                        net_amount = round(amount - fee, 4)
+
+                        print(f"💰 Tip detected: {amount} SUI → Net {net_amount} SUI to @{recipient_handle}")
+
+                        recipient_addr = get_user_address(recipient_handle)
+                        if recipient_addr:
+                            try:
+                                txn = SyncTransaction(sui_client)
+                                txn.transfer_sui(
+                                    recipient=SuiAddress(recipient_addr),
+                                    amount=int(net_amount * 1_000_000_000),
+                                    sender=BOT_SUI_ADDRESS
+                                )
+                                txn.execute()
+                                print(f"✅ Sent {net_amount} SUI to @{recipient_handle}")
+                            except Exception as e:
+                                print(f"❌ Sui transfer failed: {e}")
+                        else:
+                            print(f"⚠️ @{recipient_handle} not registered - no transfer sent")
+
+                        thank = random.choice(thank_you_phrases)
+                        emoji = random.choice(["💙", "☔️", "🍭", "🪙", "🎉"])
+                        num = random.randint(11, 99)
+                        reply = f"🎁🎉 @{recipient_handle} +{net_amount} SUI #GetASuiet 🍭 @{me.data.username} {thank} {emoji}{num}"
+
+                        try:
+                            client.create_tweet(text=reply, in_reply_to_tweet_id=tid, user_auth=True)
+                            print(f"✅ Reply posted")
+                        except Exception as e:
+                            print(f"❌ Reply failed: {e}")
+
+                last_id = tid
+                save_last_id(tid)
+
+        time.sleep(180)
+
+    except Exception as e:
+        print(f"Main loop error (continuing): {e}")
+        time.sleep(180)
