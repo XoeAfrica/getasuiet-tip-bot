@@ -59,7 +59,7 @@ def save_last_id(tid):
     conn.commit()
 
 def register_user(x_handle, sui_address):
-    x_handle = x_handle.lower().strip().replace(" ", "")  # Clean spaces
+    x_handle = x_handle.lower().strip().replace(" ", "")
     try:
         c.execute("INSERT INTO users (x_handle, sui_address) VALUES (?, ?)", (x_handle, sui_address))
         conn.commit()
@@ -95,7 +95,7 @@ while True:
 
                 text = tweet.text.lower()
 
-                # Get tipper safely
+                # Get tipper
                 try:
                     if hasattr(tweet, 'author_id') and tweet.author_id:
                         user_resp = client.get_user(id=tweet.author_id, user_auth=True)
@@ -123,9 +123,9 @@ while True:
                         save_last_id(tid)
                         continue
 
-                # === TIP LOGIC - FIXED for @getasu iet with space ===
-                # This regex now correctly captures the full recipient even with space
-                match = re.search(r'@getasuiet\s+@?(\S+?)\s*\+?(\d+\.?\d*)\s*sui?', text, re.IGNORECASE)
+                # === FIXED TIP LOGIC - Better handling for @getasu iet ===
+                # Looks for @GetASUiet followed by the recipient (even with space)
+                match = re.search(r'@getasuiet\s+@?([^\s+]+)\s*\+?(\d+\.?\d*)\s*sui?', text, re.IGNORECASE)
                 if match:
                     recipient_handle = match.group(1).strip().replace(" ", "")
                     try:
@@ -155,7 +155,7 @@ while True:
                         else:
                             print(f"⚠️ @{recipient_handle} not registered - no transfer sent")
 
-                        # Varied reply
+                        # Reply
                         thank = random.choice(thank_you_phrases)
                         emoji = random.choice(["💙", "☔️", "🍭", "🪙", "🎉"])
                         num = random.randint(11, 99)
