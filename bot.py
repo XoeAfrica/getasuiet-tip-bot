@@ -10,7 +10,7 @@ from pysui.sui.sui_txn import SyncTransaction
 
 print("Starting GetASUiet Tip Bot - Full Version with 3% Fee... 💙☔️")
 
-# CONFIG
+# === CONFIG ===
 X_CONSUMER_KEY = os.getenv("X_CONSUMER_KEY")
 X_CONSUMER_SECRET = os.getenv("X_CONSUMER_SECRET")
 X_ACCESS_TOKEN = os.getenv("X_ACCESS_TOKEN")
@@ -75,8 +75,6 @@ def get_user_address(x_handle):
 
 last_id = get_last_id()
 
-thank_you_phrases = ["Thanks!", "Appreciate it!", "Love this tip!", "Grateful!", "Awesome!", "Thanks a ton!"]
-
 while True:
     try:
         print("🔄 Checking mentions...")
@@ -95,6 +93,7 @@ while True:
 
                 text = tweet.text.lower()
 
+                # Get tipper
                 try:
                     if hasattr(tweet, 'author_id') and tweet.author_id:
                         user_resp = client.get_user(id=tweet.author_id, user_auth=True)
@@ -122,7 +121,7 @@ while True:
                         save_last_id(tid)
                         continue
 
-                # Tip logic - clean format: @GetASUiet @getasuiet +5 sui
+                # Tip logic - clean format @GetASUiet @getasuiet +5 sui
                 match = re.search(r'@getasuiet\s+@?([a-zA-Z0-9_]+)\s*\+?(\d+\.?\d*)\s*sui?', text, re.IGNORECASE)
                 if match:
                     recipient_handle = match.group(1).strip()
@@ -154,14 +153,12 @@ while True:
                         else:
                             print(f"⚠️ @{recipient_handle} not registered - no transfer sent")
 
-                        thank = random.choice(thank_you_phrases)
-                        emoji = random.choice(["💙", "☔️", "🍭", "🪙", "🎉"])
-                        num = random.randint(11, 99)
-                        reply = f"🎁🎉 @{recipient_handle} +{net_amount} SUI #GetASuiet 🍭 @{me.data.username} {thank} {emoji}{num}"
+                        # Your original clean format
+                        reply = f"🎁🎉@{recipient_handle} +{net_amount} SUI #GetASuiet 🍭"
 
                         try:
                             client.create_tweet(text=reply, in_reply_to_tweet_id=tid, user_auth=True)
-                            print(f"✅ Reply posted")
+                            print(f"✅ Reply posted: {reply}")
                         except Exception as e:
                             print(f"❌ Reply failed: {e}")
 
