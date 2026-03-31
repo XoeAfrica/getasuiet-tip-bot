@@ -59,7 +59,7 @@ def save_last_id(tid):
     conn.commit()
 
 def register_user(x_handle, sui_address):
-    x_handle = x_handle.lower().strip().replace(" ", "")  # Remove all spaces
+    x_handle = x_handle.lower().strip().replace(" ", "")  # Clean spaces
     try:
         c.execute("INSERT INTO users (x_handle, sui_address) VALUES (?, ?)", (x_handle, sui_address))
         conn.commit()
@@ -95,7 +95,7 @@ while True:
 
                 text = tweet.text.lower()
 
-                # Get tipper
+                # Get tipper safely
                 try:
                     if hasattr(tweet, 'author_id') and tweet.author_id:
                         user_resp = client.get_user(id=tweet.author_id, user_auth=True)
@@ -123,16 +123,13 @@ while True:
                         save_last_id(tid)
                         continue
 
-                # === TIP LOGIC - Fixed to properly handle @getasu iet with space ===
-                match = re.search(r'@(\w+)(?:\s+(\w+))?\s*\+?(\d+\.?\d*)\s*sui?', text, re.IGNORECASE)
+                # === TIP LOGIC - FIXED for @getasu iet with space ===
+                # This regex now correctly captures the full recipient even with space
+                match = re.search(r'@getasuiet\s+@?(\S+?)\s*\+?(\d+\.?\d*)\s*sui?', text, re.IGNORECASE)
                 if match:
-                    part1 = match.group(1)
-                    part2 = match.group(2)
-                    # Clean recipient - remove any spaces
-                    recipient_handle = (part2 if part2 else part1).replace(" ", "")
-
+                    recipient_handle = match.group(1).strip().replace(" ", "")
                     try:
-                        amount = float(match.group(3))
+                        amount = float(match.group(2))
                     except:
                         amount = 0
 
@@ -158,7 +155,7 @@ while True:
                         else:
                             print(f"⚠️ @{recipient_handle} not registered - no transfer sent")
 
-                        # Varied reply (always net amount)
+                        # Varied reply
                         thank = random.choice(thank_you_phrases)
                         emoji = random.choice(["💙", "☔️", "🍭", "🪙", "🎉"])
                         num = random.randint(11, 99)
