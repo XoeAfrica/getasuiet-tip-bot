@@ -3,6 +3,7 @@ import time
 import sqlite3
 import re
 import tweepy
+import random
 from pysui import SuiConfig, SyncClient
 from pysui.sui.sui_types import SuiAddress
 from pysui.sui.sui_txn import SyncTransaction
@@ -18,7 +19,7 @@ SUI_PRV_KEY = os.getenv("SUI_PRV_KEY")
 
 RPC_URL = os.getenv("RPC_URL", "https://sui-testnet-rpc.publicnode.com")
 
-# Tweepy Client - OAuth 1.0a User Context
+# Tweepy Client
 client = tweepy.Client(
     consumer_key=X_CONSUMER_KEY,
     consumer_secret=X_CONSUMER_SECRET,
@@ -118,32 +119,33 @@ while True:
                         amount = 0
 
                     if amount > 0:
-                        # Calculate 3% maintenance fee
-                        fee = round(amount * 0.03, 4)          # 3% fee
-                        recipient_amount = round(amount - fee, 4)  # Remaining 97%
+                        # 3% maintenance fee
+                        fee = round(amount * 0.03, 4)
+                        recipient_amount = round(amount - fee, 4)
 
                         print(f"💰 Processing tip: {amount} SUI → Fee: {fee} SUI → Recipient: {recipient_amount} SUI")
 
-                        # === SEND SUI TO RECIPIENT (if registered) ===
+                        # Send SUI if recipient is registered
                         recipient_addr = get_user_address(recipient_handle)
                         if recipient_addr:
                             try:
-                                # Build and execute transfer transaction
                                 txn = SyncTransaction(sui_client)
                                 txn.transfer_sui(
                                     recipient=SuiAddress(recipient_addr),
-                                    amount=int(recipient_amount * 1_000_000_000),  # Convert to MIST (9 decimals)
+                                    amount=int(recipient_amount * 1_000_000_000),  # to MIST
                                     sender=BOT_SUI_ADDRESS
                                 )
                                 result = txn.execute()
-                                print(f"✅ Sent {recipient_amount} SUI to @{recipient_handle} on Sui")
+                                print(f"✅ Sent {recipient_amount} SUI to @{recipient_handle}")
                             except Exception as tx_err:
                                 print(f"❌ Sui transfer failed: {tx_err}")
                         else:
                             print(f"⚠️ @{recipient_handle} not registered - no transfer sent")
 
-                        # Reply to the tip (exactly as requested)
-                        reply = f"🎁🎉@{recipient_handle} +{recipient_amount} SUI #GetASuiet 🍭"
+                        # FIXED Reply format - includes @GetASUiet as requested
+                        unique_id = random.randint(100, 999)
+                        reply = f"🎁🎉@{recipient_handle} +{recipient_amount} SUI #GetASuiet 🍭 @{me.data.username} {unique_id}"
+
                         try:
                             client.create_tweet(
                                 text=reply,
@@ -154,7 +156,7 @@ while True:
                         except Exception as reply_err:
                             print(f"❌ Reply failed: {reply_err}")
 
-                # === REGISTER LOGIC ===
+                # Register logic
                 if "register 0x" in text:
                     addr_match = re.search(r"0x[a-f0-9]{64}", text)
                     if addr_match:
@@ -163,8 +165,8 @@ while True:
                         msg = "✅ Registered successfully! 💙☔️ You can now receive tips 🍭 #GetASuiet" if success else "✅ Already registered 💙 #GetASuiet"
                         try:
                             client.create_tweet(
-                                text=msg,
-                                in_reply_to_tweet_id=tid,
+                                text=msg, 
+                                in_reply_to_tweet_id=tid, 
                                 user_auth=True
                             )
                         except:
