@@ -119,32 +119,32 @@ while True:
                         amount = 0
 
                     if amount > 0:
-                        # 3% maintenance fee
                         fee = round(amount * 0.03, 4)
                         recipient_amount = round(amount - fee, 4)
 
                         print(f"💰 Processing tip: {amount} SUI → Fee: {fee} SUI → Recipient: {recipient_amount} SUI")
 
-                        # Send SUI if recipient is registered
+                        # Sui transfer if registered
                         recipient_addr = get_user_address(recipient_handle)
                         if recipient_addr:
                             try:
                                 txn = SyncTransaction(sui_client)
                                 txn.transfer_sui(
                                     recipient=SuiAddress(recipient_addr),
-                                    amount=int(recipient_amount * 1_000_000_000),  # to MIST
+                                    amount=int(recipient_amount * 1_000_000_000),
                                     sender=BOT_SUI_ADDRESS
                                 )
-                                result = txn.execute()
+                                txn.execute()
                                 print(f"✅ Sent {recipient_amount} SUI to @{recipient_handle}")
                             except Exception as tx_err:
                                 print(f"❌ Sui transfer failed: {tx_err}")
                         else:
                             print(f"⚠️ @{recipient_handle} not registered - no transfer sent")
 
-                        # FIXED Reply format - includes @GetASUiet as requested
-                        unique_id = random.randint(100, 999)
-                        reply = f"🎁🎉@{recipient_handle} +{recipient_amount} SUI #GetASuiet 🍭 @{me.data.username} {unique_id}"
+                        # Reply with your requested format + @GetASUiet + variation to avoid 403
+                        emojis = random.choice(["💙", "☔️", "🪙", "🍭", "🎉"])
+                        unique_part = random.randint(10, 99)
+                        reply = f"🎁🎉@{recipient_handle} +{recipient_amount} SUI #GetASuiet 🍭 @{me.data.username} {emojis}{unique_part}"
 
                         try:
                             client.create_tweet(
@@ -152,7 +152,7 @@ while True:
                                 in_reply_to_tweet_id=tid,
                                 user_auth=True
                             )
-                            print(f"✅ Replied: {reply}")
+                            print(f"✅ Replied successfully: {reply}")
                         except Exception as reply_err:
                             print(f"❌ Reply failed: {reply_err}")
 
@@ -164,19 +164,15 @@ while True:
                         success = register_user(tipper_handle, addr_str)
                         msg = "✅ Registered successfully! 💙☔️ You can now receive tips 🍭 #GetASuiet" if success else "✅ Already registered 💙 #GetASuiet"
                         try:
-                            client.create_tweet(
-                                text=msg, 
-                                in_reply_to_tweet_id=tid, 
-                                user_auth=True
-                            )
+                            client.create_tweet(text=msg, in_reply_to_tweet_id=tid, user_auth=True)
                         except:
                             pass
 
                 last_id = tid
                 save_last_id(tid)
 
-        time.sleep(45)
+        time.sleep(60)  # Increased slightly to reduce pressure
 
     except Exception as e:
         print(f"Main loop error: {e}")
-        time.sleep(45)
+        time.sleep(60)
