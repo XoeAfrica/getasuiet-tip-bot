@@ -123,12 +123,12 @@ while True:
                         save_last_id(tid)
                         continue
 
-                # === FIXED TIP LOGIC - Handles "@getasu iet" correctly ===
-                # Looks for @GetASUiet followed by recipient (allows space in name)
-                match = re.search(r'@getasuiet\s+@?([a-zA-Z0-9_]+(?:\s+[a-zA-Z0-9_]+)?)\s*\+?(\d+\.?\d*)\s*sui?', text, re.IGNORECASE)
+                # === TIP LOGIC - FINAL FIX for "@getasu iet" ===
+                # Specifically looks for the bot mention followed by the recipient
+                match = re.search(r'@getasuiet\s+@?([a-zA-Z0-9_ ]+?)\s*\+?(\d+\.?\d*)\s*sui?', text, re.IGNORECASE)
                 if match:
                     raw_recipient = match.group(1).strip()
-                    recipient_handle = raw_recipient.replace(" ", "")  # Remove space for storage
+                    recipient_handle = raw_recipient.replace(" ", "")  # Clean for DB
 
                     try:
                         amount = float(match.group(2))
@@ -157,7 +157,7 @@ while True:
                         else:
                             print(f"⚠️ @{recipient_handle} not registered - no transfer sent")
 
-                        # Reply (shows the name as you typed it)
+                        # Reply shows the name as you typed it
                         thank = random.choice(thank_you_phrases)
                         emoji = random.choice(["💙", "☔️", "🍭", "🪙", "🎉"])
                         num = random.randint(11, 99)
