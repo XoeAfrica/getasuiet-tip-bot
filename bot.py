@@ -16,6 +16,7 @@ SUI_PRV_KEY = os.getenv("SUI_PRV_KEY")
 
 RPC_URL = os.getenv("RPC_URL", "https://sui-testnet-rpc.publicnode.com")
 
+# Create Tweepy client with OAuth 1.0a User Context (no Bearer Token)
 client = tweepy.Client(
     consumer_key=X_CONSUMER_KEY,
     consumer_secret=X_CONSUMER_SECRET,
@@ -24,7 +25,7 @@ client = tweepy.Client(
 )
 
 try:
-    me = client.get_me()
+    me = client.get_me(user_auth=True)   # Added user_auth=True
     print(f"✅ Authenticated as @{me.data.username} (ID: {me.data.id})")
     BOT_USER_ID = me.data.id
 except Exception as e:
@@ -38,7 +39,7 @@ print(f"🚀 Bot Sui address: {BOT_SUI_ADDRESS} (Testnet)")
 
 print("🤖 GetASUiet Tip Bot FULL VERSION is running! 💙☔️🪙🍭")
 
-# Database
+# Database setup (unchanged)
 conn = sqlite3.connect('bot.db', check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS users (x_handle TEXT PRIMARY KEY, sui_address TEXT UNIQUE)''')
@@ -74,11 +75,23 @@ while True:
     try:
         print("🔄 Checking mentions...")
         response = None
+        
         if BOT_USER_ID:
             try:
-                response = client.get_users_mentions(id=BOT_USER_ID, max_results=10)
+                # FIXED: Added user_auth=True
+                response = client.get_users_mentions(
+                    id=BOT_USER_ID, 
+                    max_results=10,
+                    user_auth=True
+                )
             except Exception as api_err:
-                print(f"❌ X API Error: {str(api_err)[:100]}")
+                print(f"❌ X API Error: {str(api_err)[:150]}")
+                # Optional: print more details if available
+                if hasattr(api_err, 'response') and api_err.response is not None:
+                    try:
+                        print(api_err.response.json())
+                    except:
+                        print("Raw error:", api_err.response.text if hasattr(api_err.response, 'text') else str(api_err))
 
         if response and hasattr(response, 'data') and response.data:
             for tweet in reversed(response.data):
@@ -88,10 +101,15 @@ while True:
 
                 text = tweet.text.lower()
 
+                # Get tipper username - FIXED with user_auth=True
                 try:
-                    user_resp = client.get_user(tweet.author_id)
+                    user_resp = client.get_user(
+                        id=tweet.author_id, 
+                        user_auth=True
+                    )
                     tipper_handle = user_resp.data.username
-                except:
+                except Exception as user_err:
+                    print(f"⚠️ Could not get user info: {user_err}")
                     tipper_handle = "unknown"
 
                 # === TIP LOGIC ===
@@ -104,11 +122,15 @@ while True:
                         amount = 0
 
                     if amount > 0:
-                        # Your exact requested reply format
                         reply = f"🎁🎉@{recipient_handle} +{amount} SUI #GetASuiet 🍭. Thank you for tipping."
 
                         try:
-                            client.create_tweet(text=reply, in_reply_to_tweet_id=tid)
+                            # FIXED: Added user_auth=True for posting
+                            client.create_tweet(
+                                text=reply, 
+                                in_reply_to_tweet_id=tid,
+                                user_auth=True
+                            )
                             print(f"✅ Replied for {amount} SUI tip to @{recipient_handle}")
                         except Exception as reply_err:
                             print(f"❌ Reply failed: {reply_err}")
@@ -120,7 +142,11 @@ while True:
                         addr_str = addr_match.group(0)
                         msg = "✅ Registered successfully! 💙☔️ You can now receive tips 🍭 #GetASuiet" if register_user(tipper_handle, addr_str) else "✅ Already registered 💙 #GetASuiet"
                         try:
-                            client.create_tweet(text=msg, in_reply_to_tweet_id=tid)
+                            client.create_tweet(
+                                text=msg, 
+                                in_reply_to_tweet_id=tid,
+                                user_auth=True
+                            )
                         except:
                             pass
 
