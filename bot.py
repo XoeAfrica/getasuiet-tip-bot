@@ -73,6 +73,15 @@ def get_user_address(x_handle):
 
 last_id = get_last_id()
 
+# Variation phrases to avoid duplicate content detection
+thank_you_phrases = [
+    "Thanks for the tip!",
+    "Appreciate the support 💙",
+    "Much love for this tip ☔️",
+    "Awesome tip, thank you!",
+    "Grateful for your tip 🍭"
+]
+
 while True:
     try:
         print("🔄 Checking mentions...")
@@ -133,10 +142,11 @@ while True:
                         else:
                             print(f"⚠️ @{recipient_handle} not registered - no transfer sent")
 
-                        # Reply with your requested format + @GetASUiet + strong variation
-                        variation = random.choice(["💙☔️", "🪙🍭", "🎉🔥", "✨💎", "🚀🌟"])
-                        unique_num = random.randint(100, 999)
-                        reply = f"🎁🎉@{recipient_handle} +{recipient_amount} SUI #GetASuiet 🍭 @{me.data.username} {variation}{unique_num}"
+                        # Strong variation to beat duplicate detection
+                        thank_you = random.choice(thank_you_phrases)
+                        emoji_set = random.choice(["💙☔️", "🪙🍭", "🎉✨", "🚀🔥"])
+                        unique_num = random.randint(10, 99)
+                        reply = f"🎁🎉@{recipient_handle} +{recipient_amount} SUI #GetASuiet 🍭 @{me.data.username} {thank_you} {emoji_set}{unique_num}"
 
                         try:
                             client.create_tweet(text=reply, in_reply_to_tweet_id=tid, user_auth=True)
@@ -159,8 +169,8 @@ while True:
                 last_id = tid
                 save_last_id(tid)
 
-        time.sleep(60)
+        time.sleep(90)  # Increased sleep to reduce pressure on X
 
     except Exception as e:
         print(f"Main loop error: {e}")
-        time.sleep(60)
+        time.sleep(90)
