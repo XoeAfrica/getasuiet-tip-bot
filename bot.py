@@ -19,7 +19,6 @@ SUI_PRV_KEY = os.getenv("SUI_PRV_KEY")
 
 RPC_URL = os.getenv("RPC_URL", "https://sui-testnet-rpc.publicnode.com")
 
-# Tweepy Client
 client = tweepy.Client(
     consumer_key=X_CONSUMER_KEY,
     consumer_secret=X_CONSUMER_SECRET,
@@ -35,7 +34,6 @@ except Exception as e:
     print(f"❌ Auth failed: {e}")
     BOT_USER_ID = None
 
-# Sui Setup
 cfg = SuiConfig.user_config(rpc_url=RPC_URL, prv_keys=[SUI_PRV_KEY])
 sui_client = SyncClient(cfg)
 BOT_SUI_ADDRESS = str(cfg.active_address)
@@ -82,11 +80,7 @@ while True:
         
         if BOT_USER_ID:
             try:
-                response = client.get_users_mentions(
-                    id=BOT_USER_ID, 
-                    max_results=10,
-                    user_auth=True
-                )
+                response = client.get_users_mentions(id=BOT_USER_ID, max_results=10, user_auth=True)
             except Exception as api_err:
                 print(f"❌ X API Error: {str(api_err)[:150]}")
 
@@ -98,7 +92,6 @@ while True:
 
                 text = tweet.text.lower()
 
-                # Get tipper username safely
                 try:
                     if hasattr(tweet, 'author_id') and tweet.author_id:
                         user_resp = client.get_user(id=tweet.author_id, user_auth=True)
@@ -124,7 +117,6 @@ while True:
 
                         print(f"💰 Processing tip: {amount} SUI → Fee: {fee} SUI → Recipient: {recipient_amount} SUI")
 
-                        # Sui transfer if registered
                         recipient_addr = get_user_address(recipient_handle)
                         if recipient_addr:
                             try:
@@ -141,18 +133,14 @@ while True:
                         else:
                             print(f"⚠️ @{recipient_handle} not registered - no transfer sent")
 
-                        # Reply with your requested format + @GetASUiet + variation to avoid 403
-                        emojis = random.choice(["💙", "☔️", "🪙", "🍭", "🎉"])
-                        unique_part = random.randint(10, 99)
-                        reply = f"🎁🎉@{recipient_handle} +{recipient_amount} SUI #GetASuiet 🍭 @{me.data.username} {emojis}{unique_part}"
+                        # Reply with your requested format + @GetASUiet + strong variation
+                        variation = random.choice(["💙☔️", "🪙🍭", "🎉🔥", "✨💎", "🚀🌟"])
+                        unique_num = random.randint(100, 999)
+                        reply = f"🎁🎉@{recipient_handle} +{recipient_amount} SUI #GetASuiet 🍭 @{me.data.username} {variation}{unique_num}"
 
                         try:
-                            client.create_tweet(
-                                text=reply,
-                                in_reply_to_tweet_id=tid,
-                                user_auth=True
-                            )
-                            print(f"✅ Replied successfully: {reply}")
+                            client.create_tweet(text=reply, in_reply_to_tweet_id=tid, user_auth=True)
+                            print(f"✅ Replied: {reply}")
                         except Exception as reply_err:
                             print(f"❌ Reply failed: {reply_err}")
 
@@ -171,7 +159,7 @@ while True:
                 last_id = tid
                 save_last_id(tid)
 
-        time.sleep(60)  # Increased slightly to reduce pressure
+        time.sleep(60)
 
     except Exception as e:
         print(f"Main loop error: {e}")
