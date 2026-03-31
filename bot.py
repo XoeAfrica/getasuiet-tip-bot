@@ -73,13 +73,13 @@ def get_user_address(x_handle):
 
 last_id = get_last_id()
 
-# Variation phrases to avoid duplicate content detection
+# Strong variations to avoid 403 duplicate content
 thank_you_phrases = [
-    "Thanks for the tip!",
-    "Appreciate the support 💙",
-    "Much love for this tip ☔️",
-    "Awesome tip, thank you!",
-    "Grateful for your tip 🍭"
+    "Thanks for tipping! 💙",
+    "Appreciate the support ☔️",
+    "Much love for this tip 🍭",
+    "Awesome tip, thank you! 🪙",
+    "Grateful for your tip ✨"
 ]
 
 while True:
@@ -101,6 +101,7 @@ while True:
 
                 text = tweet.text.lower()
 
+                # Get tipper safely
                 try:
                     if hasattr(tweet, 'author_id') and tweet.author_id:
                         user_resp = client.get_user(id=tweet.author_id, user_auth=True)
@@ -110,6 +111,22 @@ while True:
                 except Exception as user_err:
                     print(f"⚠️ Could not get user info for tweet {tid}: {user_err}")
                     tipper_handle = "unknown"
+
+                # === REGISTER LOGIC (moved out so it always checks) ===
+                if "register 0x" in text:
+                    addr_match = re.search(r"0x[a-f0-9]{64}", text)
+                    if addr_match:
+                        addr_str = addr_match.group(0)
+                        success = register_user(tipper_handle, addr_str)
+                        msg = "✅ Registered successfully! 💙☔️ You can now receive tips 🍭 #GetASuiet" if success else "✅ Already registered 💙 #GetASuiet"
+                        try:
+                            client.create_tweet(text=msg, in_reply_to_tweet_id=tid, user_auth=True)
+                            print(f"✅ Registration reply sent for @{tipper_handle}")
+                        except Exception as reg_err:
+                            print(f"❌ Registration reply failed: {reg_err}")
+                        last_id = tid
+                        save_last_id(tid)
+                        continue  # Skip tip logic for register tweets
 
                 # === TIP LOGIC ===
                 match = re.search(r'@(\w+)\s*\+?(\d+\.?\d*)\s*sui?', text)
@@ -142,7 +159,7 @@ while True:
                         else:
                             print(f"⚠️ @{recipient_handle} not registered - no transfer sent")
 
-                        # Strong variation to beat duplicate detection
+                        # Reply with strong variation
                         thank_you = random.choice(thank_you_phrases)
                         emoji_set = random.choice(["💙☔️", "🪙🍭", "🎉✨", "🚀🔥"])
                         unique_num = random.randint(10, 99)
@@ -154,22 +171,10 @@ while True:
                         except Exception as reply_err:
                             print(f"❌ Reply failed: {reply_err}")
 
-                # Register logic
-                if "register 0x" in text:
-                    addr_match = re.search(r"0x[a-f0-9]{64}", text)
-                    if addr_match:
-                        addr_str = addr_match.group(0)
-                        success = register_user(tipper_handle, addr_str)
-                        msg = "✅ Registered successfully! 💙☔️ You can now receive tips 🍭 #GetASuiet" if success else "✅ Already registered 💙 #GetASuiet"
-                        try:
-                            client.create_tweet(text=msg, in_reply_to_tweet_id=tid, user_auth=True)
-                        except:
-                            pass
-
                 last_id = tid
                 save_last_id(tid)
 
-        time.sleep(90)  # Increased sleep to reduce pressure on X
+        time.sleep(90)
 
     except Exception as e:
         print(f"Main loop error: {e}")
