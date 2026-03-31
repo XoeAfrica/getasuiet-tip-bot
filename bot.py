@@ -10,7 +10,7 @@ from pysui.sui.sui_txn import SyncTransaction
 
 print("Starting GetASUiet Tip Bot - Full Version with 3% Fee... 💙☔️")
 
-# CONFIG
+# === CONFIG ===
 X_CONSUMER_KEY = os.getenv("X_CONSUMER_KEY")
 X_CONSUMER_SECRET = os.getenv("X_CONSUMER_SECRET")
 X_ACCESS_TOKEN = os.getenv("X_ACCESS_TOKEN")
@@ -59,7 +59,7 @@ def save_last_id(tid):
     conn.commit()
 
 def register_user(x_handle, sui_address):
-    x_handle = x_handle.lower().replace(" ", "")  # Remove spaces
+    x_handle = x_handle.lower().strip().replace(" ", "")  # Remove all spaces
     try:
         c.execute("INSERT INTO users (x_handle, sui_address) VALUES (?, ?)", (x_handle, sui_address))
         conn.commit()
@@ -68,7 +68,7 @@ def register_user(x_handle, sui_address):
         return False
 
 def get_user_address(x_handle):
-    x_handle = x_handle.lower().replace(" ", "")
+    x_handle = x_handle.lower().strip().replace(" ", "")
     c.execute("SELECT sui_address FROM users WHERE x_handle=?", (x_handle,))
     row = c.fetchone()
     return row[0] if row else None
@@ -95,6 +95,7 @@ while True:
 
                 text = tweet.text.lower()
 
+                # Get tipper
                 try:
                     if hasattr(tweet, 'author_id') and tweet.author_id:
                         user_resp = client.get_user(id=tweet.author_id, user_auth=True)
@@ -104,7 +105,7 @@ while True:
                 except:
                     tipper_handle = "unknown"
 
-                # Register logic
+                # === REGISTER LOGIC ===
                 if "register 0x" in text:
                     addr_match = re.search(r"0x[a-f0-9]{64}", text)
                     if addr_match:
@@ -122,12 +123,13 @@ while True:
                         save_last_id(tid)
                         continue
 
-                # Tip logic - improved to handle @getasu iet with space
-                match = re.search(r'@(\w+)(?:\s+(\w+))?\s*\+?(\d+\.?\d*)\s*sui?', text)
+                # === TIP LOGIC - Fixed to properly handle @getasu iet with space ===
+                match = re.search(r'@(\w+)(?:\s+(\w+))?\s*\+?(\d+\.?\d*)\s*sui?', text, re.IGNORECASE)
                 if match:
                     part1 = match.group(1)
                     part2 = match.group(2)
-                    recipient_handle = part2 if part2 else part1
+                    # Clean recipient - remove any spaces
+                    recipient_handle = (part2 if part2 else part1).replace(" ", "")
 
                     try:
                         amount = float(match.group(3))
@@ -156,7 +158,7 @@ while True:
                         else:
                             print(f"⚠️ @{recipient_handle} not registered - no transfer sent")
 
-                        # Varied reply
+                        # Varied reply (always net amount)
                         thank = random.choice(thank_you_phrases)
                         emoji = random.choice(["💙", "☔️", "🍭", "🪙", "🎉"])
                         num = random.randint(11, 99)
