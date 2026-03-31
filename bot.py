@@ -81,14 +81,4 @@ while True:
         response = None
         if BOT_USER_ID:
             try:
-                response = client.get_users_mentions(id=BOT_USER_ID, max_results=10, user_auth=True)
-            except Exception as e:
-                print(f"❌ Mention fetch error: {e}")
-
-        if response and hasattr(response, 'data') and response.data:
-            for tweet in reversed(response.data):
-                tid = tweet.id
-                if tid <= last_id:
-                    continue
-
-                text =​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
+                response = client.get_users_mentions(id=BOT_USER​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
