@@ -103,7 +103,6 @@ while True:
             time.sleep(180)
             continue
 
-        # ONE SINGLE CALL - gets mentions + author usernames
         response = client.get_users_mentions(
             id=BOT_USER_ID,
             max_results=5,
@@ -114,7 +113,7 @@ while True:
         )
 
         if response and response.data:
-            # === FIXED: Safe username lookup (handles dict or object) ===
+            # === ULTRA-SAFE username lookup (fixed for good) ===
             user_dict = {}
             if hasattr(response, 'includes') and response.includes is not None:
                 includes = response.includes
@@ -123,8 +122,14 @@ while True:
                 else:
                     users = getattr(includes, 'users', [])
                 for user in users:
-                    if hasattr(user, 'id') and hasattr(user, 'username'):
-                        user_dict[user.id] = user.username
+                    if isinstance(user, dict):
+                        uid = user.get('id')
+                        uname = user.get('username')
+                    else:
+                        uid = getattr(user, 'id', None)
+                        uname = getattr(user, 'username', None)
+                    if uid and uname:
+                        user_dict[uid] = uname
 
             for tweet in reversed(response.data):
                 tid = tweet.id
@@ -171,7 +176,7 @@ while True:
                 last_id = tid
                 save_last_id(tid)
 
-        time.sleep(180)  # 3 minutes - very credit friendly
+        time.sleep(180)
 
     except Exception as e:
         print(f"Loop error: {e}")
