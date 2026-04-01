@@ -6,7 +6,7 @@ import tweepy
 from pysui import SuiConfig, SyncClient, handle_result
 from pysui.sui.sui_txn import SyncTransaction
 
-print("🚀 Starting GetASUiet Tip Bot - Full Version with 3% Fee... 💙☔️")
+print("🚀 GetASUiet Tip Bot - SUPER LIGHT VERSION (credit-friendly) 💙☔️")
 
 # === CONFIG ===
 X_CONSUMER_KEY = os.getenv("X_CONSUMER_KEY")
@@ -17,7 +17,6 @@ SUI_PRV_KEY = os.getenv("SUI_PRV_KEY")
 
 RPC_URL = os.getenv("RPC_URL", "https://sui-testnet-rpc.publicnode.com")
 
-# Tweepy client (OAuth 1.0a User Context)
 client = tweepy.Client(
     consumer_key=X_CONSUMER_KEY,
     consumer_secret=X_CONSUMER_SECRET,
@@ -27,11 +26,10 @@ client = tweepy.Client(
 
 try:
     me = client.get_me(user_auth=True)
-    print(f"✅ Authenticated as @{me.data.username} (ID: {me.data.id})")
+    print(f"✅ Authenticated as @{me.data.username}")
     BOT_USER_ID = me.data.id
 except Exception as e:
     print(f"❌ X Auth failed: {e}")
-    BOT_USER_ID = None
     exit(1)
 
 # Sui setup
@@ -39,8 +37,6 @@ cfg = SuiConfig.user_config(rpc_url=RPC_URL, prv_keys=[SUI_PRV_KEY])
 sui_client = SyncClient(cfg)
 BOT_SUI_ADDRESS = str(cfg.active_address)
 print(f"🚀 Bot Sui address: {BOT_SUI_ADDRESS} (Testnet)")
-
-print("🤖 GetASUiet Tip Bot FULL VERSION is running! 💙☔️🪙🍭")
 
 # === DATABASE ===
 conn = sqlite3.connect('bot.db', check_same_thread=False)
@@ -65,75 +61,72 @@ def register_user(x_handle, sui_address):
         conn.commit()
         return True
     except sqlite3.IntegrityError:
-        return False  # already registered
+        return False
 
 def get_user_address(x_handle):
     c.execute("SELECT sui_address FROM users WHERE x_handle=?", (x_handle.lower(),))
     row = c.fetchone()
     return row[0] if row else None
 
-# === SUI TIP FUNCTION (3% fee) ===
+# === SUI TIP (3% fee) ===
 def send_sui_tip(recipient_address: str, amount_sui: float) -> tuple[bool, str]:
-    """Returns (success: bool, message_or_explorer_link: str)"""
     try:
         amount_mist = int(amount_sui * 1_000_000_000)
         fee_mist = int(amount_mist * 0.03)
         net_mist = amount_mist - fee_mist
 
-        if net_mist < 1_000_000:  # ~0.001 SUI minimum
-            return False, "Amount too small after 3% fee"
+        if net_mist < 1_000_000:
+            return False, "Amount too small after fee"
 
-        # Build transaction
         tx = SyncTransaction(client=sui_client)
         split_coin = tx.split_coin(coin=tx.gas, amounts=[net_mist])
         tx.transfer_objects(transfers=[split_coin], recipient=recipient_address)
 
-        # Execute
         tx_result = tx.execute(gas_budget="5000000")
 
         if tx_result.is_ok():
-            digest = tx_result.result_data.digest if hasattr(tx_result.result_data, "digest") else str(tx_result)
+            digest = getattr(tx_result.result_data, "digest", str(tx_result))
             explorer = f"https://suiscan.xyz/testnet/tx/{digest}"
-            return True, f"✅ Sent {amount_sui} SUI (3% fee kept by bot) • {explorer}"
+            return True, f"✅ {amount_sui} SUI sent • {explorer}"
         else:
-            return False, f"❌ Transaction failed: {tx_result.result_string}"
+            return False, f"❌ TX failed: {tx_result.result_string}"
     except Exception as e:
-        return False, f"❌ TX error: {str(e)[:120]}"
+        return False, f"❌ TX error: {str(e)[:100]}"
 
 last_id = get_last_id()
 
+print("🤖 SUPER LIGHT Bot running... (checks every 3 min to save credits)")
+
 while True:
     try:
-        print("🔄 Checking mentions...")
         if not BOT_USER_ID:
-            time.sleep(45)
+            time.sleep(180)
             continue
 
+        # ONE SINGLE CALL - gets mentions + author usernames
         response = client.get_users_mentions(
             id=BOT_USER_ID,
-            max_results=10,
-            tweet_fields=["author_id"],      # ← CRITICAL FIX
+            max_results=5,                    # kept low
+            tweet_fields=["author_id"],
+            expansions=["author_id"],          # ← key for light version
+            user_fields=["username"],          # ← gets username here
             user_auth=True
         )
 
-        if response and hasattr(response, 'data') and response.data:
-            for tweet in reversed(response.data):  # oldest first
+        if response and response.data:
+            # Build username lookup from includes (no extra calls!)
+            user_dict = {}
+            if response.includes and response.includes.users:
+                user_dict = {u.id: u.username for u in response.includes.users}
+
+            for tweet in reversed(response.data):
                 tid = tweet.id
                 if tid <= last_id:
                     continue
 
                 text = tweet.text.lower()
                 author_id = tweet.author_id
-
-                # Get tipper username
-                try:
-                    user_resp = client.get_user(id=author_id, user_auth=True)
-                    tipper_handle = user_resp.data.username
-                except Exception as user_err:
-                    print(f"⚠️ Could not get user info for {author_id}: {user_err}")
-                    tipper_handle = "unknown"
-
-                print(f"📨 Processing mention from @{tipper_handle} (ID: {tid})")
+                tipper_handle = user_dict.get(author_id, "unknown")
 
                 # === TIP LOGIC ===
                 match = re.search(r'@(\w+)\s*\+?(\d+\.?\d*)\s*sui?', text)
@@ -146,49 +139,33 @@ while True:
 
                     if amount > 0:
                         recipient_sui = get_user_address(recipient_handle)
-
                         if not recipient_sui:
-                            reply = f"@{recipient_handle} needs to register first! Reply with: register 0x..."
+                            reply = f"@{recipient_handle} needs to register first! Reply: register 0x..."
                         else:
                             success, tx_msg = send_sui_tip(recipient_sui, amount)
-                            if success:
-                                reply = f"🎁🎉 @{recipient_handle} +{amount} SUI #GetASuiet 🍭 {tx_msg}"
-                            else:
-                                reply = f"❌ @{recipient_handle} Tip failed: {tx_msg}"
+                            reply = f"🎁🎉 @{recipient_handle} +{amount} SUI #GetASuiet 🍭 {tx_msg}" if success else f"❌ Tip failed: {tx_msg}"
 
-                        # Post reply
                         try:
-                            client.create_tweet(
-                                text=reply,
-                                in_reply_to_tweet_id=tid,
-                                user_auth=True
-                            )
-                            print(f"✅ Replied & processed tip to @{recipient_handle}")
+                            client.create_tweet(text=reply, in_reply_to_tweet_id=tid, user_auth=True)
                         except Exception as reply_err:
-                            print(f"❌ Reply failed: {reply_err}")
+                            print(f"Reply failed (still need Write permission): {reply_err}")
 
                 # === REGISTER LOGIC ===
                 if "register 0x" in text:
                     addr_match = re.search(r"0x[a-f0-9]{64}", text)
                     if addr_match:
                         addr_str = addr_match.group(0)
-                        success = register_user(tipper_handle, addr_str)
-                        msg = "✅ Registered successfully! 💙☔️ You can now receive tips 🍭 #GetASuiet" if success else "✅ Already registered 💙 #GetASuiet"
+                        msg = "✅ Registered! 💙☔️ You can now receive tips 🍭 #GetASuiet" if register_user(tipper_handle, addr_str) else "✅ Already registered 💙 #GetASuiet"
                         try:
-                            client.create_tweet(
-                                text=msg,
-                                in_reply_to_tweet_id=tid,
-                                user_auth=True
-                            )
+                            client.create_tweet(text=msg, in_reply_to_tweet_id=tid, user_auth=True)
                         except:
                             pass
 
-                # Update last processed
                 last_id = tid
                 save_last_id(tid)
 
-        time.sleep(45)
+        time.sleep(180)  # 3 minutes - very credit friendly
 
     except Exception as e:
-        print(f"Main loop error: {e}")
-        time.sleep(45)
+        print(f"Loop error: {e}")
+        time.sleep(180)
