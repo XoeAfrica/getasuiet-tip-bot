@@ -3,7 +3,7 @@ import time
 import sqlite3
 import re
 import tweepy
-from pysui import SuiConfig, SyncClient, handle_result
+from pysui import SuiConfig, SyncClient
 from pysui.sui.sui_txn import SyncTransaction
 
 print("🚀 GetASUiet Tip Bot - SUPER LIGHT VERSION (credit-friendly) 💙☔️")
@@ -106,18 +106,25 @@ while True:
         # ONE SINGLE CALL - gets mentions + author usernames
         response = client.get_users_mentions(
             id=BOT_USER_ID,
-            max_results=5,                    # kept low
+            max_results=5,
             tweet_fields=["author_id"],
-            expansions=["author_id"],          # ← key for light version
-            user_fields=["username"],          # ← gets username here
+            expansions=["author_id"],
+            user_fields=["username"],
             user_auth=True
         )
 
         if response and response.data:
-            # Build username lookup from includes (no extra calls!)
+            # === FIXED: Safe username lookup (handles dict or object) ===
             user_dict = {}
-            if response.includes and response.includes.users:
-                user_dict = {u.id: u.username for u in response.includes.users}
+            if hasattr(response, 'includes') and response.includes is not None:
+                includes = response.includes
+                if isinstance(includes, dict):
+                    users = includes.get('users', [])
+                else:
+                    users = getattr(includes, 'users', [])
+                for user in users:
+                    if hasattr(user, 'id') and hasattr(user, 'username'):
+                        user_dict[user.id] = user.username
 
             for tweet in reversed(response.data):
                 tid = tweet.id
