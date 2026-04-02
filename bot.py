@@ -6,7 +6,7 @@ import tweepy
 from pysui import SuiConfig, SyncClient
 from pysui.sui.sui_txn import SyncTransaction
 
-print("🚀 GetASUiet Tip Bot - SUPER LIGHT VERSION (credit-friendly) 💙☔️")
+print("🚀 GetASUiet Tip Bot - SUPER LIGHT VERSION (credit-friendly + X-compliant) 💙☔️")
 
 # === CONFIG ===
 X_CONSUMER_KEY = os.getenv("X_CONSUMER_KEY")
@@ -95,7 +95,7 @@ def send_sui_tip(recipient_address: str, amount_sui: float) -> tuple[bool, str]:
 
 last_id = get_last_id()
 
-print("🤖 SUPER LIGHT Bot running... (checks every 3 min to save credits)")
+print("🤖 SUPER LIGHT Bot running... (checks every 3 min)")
 
 while True:
     try:
@@ -113,7 +113,7 @@ while True:
         )
 
         if response and response.data:
-            # === ULTRA-SAFE username lookup (fixed for good) ===
+            # Safe username lookup
             user_dict = {}
             if hasattr(response, 'includes') and response.includes is not None:
                 includes = response.includes
@@ -140,7 +140,7 @@ while True:
                 author_id = tweet.author_id
                 tipper_handle = user_dict.get(author_id, "unknown")
 
-                # === TIP LOGIC ===
+                # === TIP LOGIC (X-COMPLIANT - NO @recipient in reply) ===
                 match = re.search(r'@(\w+)\s*\+?(\d+\.?\d*)\s*sui?', text)
                 if match:
                     recipient_handle = match.group(1)
@@ -155,12 +155,13 @@ while True:
                             reply = f"@{recipient_handle} needs to register first! Reply: register 0x..."
                         else:
                             success, tx_msg = send_sui_tip(recipient_sui, amount)
-                            reply = f"🎁🎉 @{recipient_handle} +{amount} SUI #GetASuiet 🍭 {tx_msg}" if success else f"❌ Tip failed: {tx_msg}"
+                            # FIXED: No @mention in reply → this is what X Staff wants
+                            reply = f"🎁🎉 {amount} SUI tipped successfully! #GetASuiet 🍭 {tx_msg}" if success else f"❌ Tip failed: {tx_msg}"
 
                         try:
                             client.create_tweet(text=reply, in_reply_to_tweet_id=tid, user_auth=True)
                         except Exception as reply_err:
-                            print(f"Reply failed (still need Write permission): {reply_err}")
+                            print(f"Reply failed: {reply_err}")
 
                 # === REGISTER LOGIC ===
                 if "register 0x" in text:
